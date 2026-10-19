@@ -25,11 +25,20 @@ const PROOF_HASH =
   "0101010101010101010101010101010101010101010101010101010101010101".slice(0, 64);
 const VALIDITY_SECONDS = 3600;
 
+const GITHUB_URL = "https://github.com/karanjadavi/agent-trust-layer";
+const HACKATHON_URL = "https://dorahacks.io/buidl/46244";
+
+const idle: StepResult = { status: "idle" };
+
+function shorten(value: string) {
+  return value.length > 16 ? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
+}
+
 export default function Home() {
-  const [step1, setStep1] = useState<StepResult>({ status: "idle" });
-  const [step2, setStep2] = useState<StepResult>({ status: "idle" });
-  const [step3, setStep3] = useState<StepResult>({ status: "idle", message: undefined });
-  const [step4, setStep4] = useState<StepResult>({ status: "idle" });
+  const [step1, setStep1] = useState<StepResult>(idle);
+  const [step2, setStep2] = useState<StepResult>(idle);
+  const [step3, setStep3] = useState<StepResult>(idle);
+  const [step4, setStep4] = useState<StepResult>(idle);
 
   const [adminKey, setAdminKey] = useState("");
   const [verifierKey, setVerifierKey] = useState("");
@@ -43,6 +52,16 @@ export default function Home() {
     } catch (e) {
       alert((e as Error).message);
     }
+  }
+
+  function resetDemo() {
+    setStep1(idle);
+    setStep2(idle);
+    setStep3(idle);
+    setStep4(idle);
+    setAdminKey("");
+    setVerifierKey("");
+    setAgentKey("");
   }
 
   async function runStep1() {
@@ -104,46 +123,72 @@ export default function Home() {
     { label: "Revoke", status: step4.status },
   ];
 
+  const anyProgress = progressSteps.some((s) => s.status !== "idle");
+
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-12">
+    <main className="min-h-screen bg-bg text-text px-5 sm:px-6 py-12">
       <ThemeToggle />
       <div className="max-w-3xl mx-auto">
         <header className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight">AgentTrust</h1>
-          <p className="text-muted mt-2">
-            On-chain verifiable credentials for autonomous AI agents — live on Stellar
-            testnet.
+          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1 text-xs text-muted">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-60 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+            </span>
+            Live on Stellar Testnet
+          </span>
+
+          <h1 className="mt-4 text-4xl sm:text-5xl font-bold tracking-tight bg-linear-to-r from-accent to-accent-strong bg-clip-text text-transparent">
+            AgentTrust
+          </h1>
+          <p className="text-muted mt-3 max-w-xl">
+            On-chain verifiable credentials for autonomous AI agents. Check an agent
+            before you trust it, and revoke it if it misbehaves.
           </p>
-          <a
-            href={explorerContractUrl()}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-block mt-3 text-sm text-success hover:underline"
-          >
-            View contract on Stellar Expert →
-          </a>
-          <p className="text-xs text-muted2 mt-1 font-mono break-all">{CONTRACT_ID}</p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <a
+              href={explorerContractUrl()}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-success hover:underline"
+            >
+              View contract on Stellar Expert ↗
+            </a>
+            <CopyButton value={CONTRACT_ID} label="Copy contract ID" />
+          </div>
+          <p className="text-xs text-muted2 mt-2 font-mono break-all">{CONTRACT_ID}</p>
         </header>
 
         <ProgressTracker steps={progressSteps} />
 
-        <section className="mb-8 p-4 rounded-xl border border-line bg-card">
-          <h2 className="font-semibold mb-2">1. Load demo identities</h2>
-          <p className="text-sm text-muted mb-3">
+        <section className="mb-6 p-5 rounded-2xl border border-line bg-card shadow-sm">
+          <h2 className="font-semibold mb-1">1. Load demo identities</h2>
+          <p className="text-sm text-muted mb-4">
             Loads the admin, verifier, and agent public keys from your local environment
             config.
           </p>
-          <button
-            onClick={loadKeys}
-            className="px-4 py-2 rounded-lg bg-accent-strong text-on-accent font-medium hover:opacity-90"
-          >
-            Load Keys
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={loadKeys}
+              className="px-4 py-2 rounded-lg bg-accent-strong text-on-accent font-medium hover:opacity-90 transition"
+            >
+              Load Keys
+            </button>
+            {anyProgress && (
+              <button
+                onClick={resetDemo}
+                className="px-4 py-2 rounded-lg border border-line text-muted hover:text-text transition"
+              >
+                Reset demo
+              </button>
+            )}
+          </div>
           {adminKey && (
-            <div className="mt-3 text-xs font-mono text-muted space-y-1 break-all">
-              <p>Admin: {adminKey}</p>
-              <p>Verifier: {verifierKey}</p>
-              <p>Agent: {agentKey}</p>
+            <div className="mt-4 grid gap-2 text-xs">
+              <KeyRow role="Admin" value={adminKey} />
+              <KeyRow role="Verifier" value={verifierKey} />
+              <KeyRow role="Agent" value={agentKey} />
             </div>
           )}
         </section>
@@ -160,7 +205,7 @@ export default function Home() {
         <StepCard
           number={3}
           title="Issue credential"
-          description={`Verifier attests the agent passed a "${CAPABILITY}" check, backed by a proof hash — no private data goes on-chain.`}
+          description={`Verifier attests the agent passed a "${CAPABILITY}" check, backed by a proof hash. No private data goes on-chain.`}
           onRun={runStep2}
           result={step2}
           disabled={!verifierKey || !agentKey}
@@ -169,7 +214,7 @@ export default function Home() {
         <StepCard
           number={4}
           title="Check credential (before trusting the agent)"
-          description="Any other agent or contract calls this before transacting — a real, on-chain-verified answer."
+          description="Any other agent or contract calls this before transacting. The answer is verified on-chain."
           onRun={runStep3}
           result={step3}
           disabled={!agentKey}
@@ -184,11 +229,54 @@ export default function Home() {
           disabled={!agentKey}
         />
 
-        <footer className="mt-12 text-xs text-muted2 text-center">
-          Built for UK AI Agent Hackathon EP5 × Conduct — testnet demo only.
+        <footer className="mt-12 pt-6 border-t border-line text-xs text-muted2 text-center space-y-2">
+          <p>Built for UK AI Agent Hackathon EP5 × Conduct. Testnet demo only.</p>
+          <p className="space-x-4">
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-text hover:underline">
+              GitHub
+            </a>
+            <a href={HACKATHON_URL} target="_blank" rel="noreferrer" className="hover:text-text hover:underline">
+              DoraHacks submission
+            </a>
+          </p>
         </footer>
       </div>
     </main>
+  );
+}
+
+function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+
+  return (
+    <button
+      onClick={copy}
+      className="text-xs rounded-md border border-line px-2 py-1 text-muted hover:text-text transition"
+    >
+      {copied ? "Copied ✓" : label}
+    </button>
+  );
+}
+
+function KeyRow({ role, value }: { role: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
+      <span className="text-muted">{role}</span>
+      <span className="flex items-center gap-2">
+        <span className="font-mono text-text" title={value}>
+          {shorten(value)}
+        </span>
+        <CopyButton value={value} />
+      </span>
+    </div>
   );
 }
 
@@ -298,36 +386,47 @@ function StepCard({
   disabled?: boolean;
 }) {
   return (
-    <section className="mb-6 p-4 rounded-xl border border-line bg-card">
+    <section className="mb-6 p-5 rounded-2xl border border-line bg-card shadow-sm">
       <h2 className="font-semibold mb-1">
         {number}. {title}
       </h2>
-      <p className="text-sm text-muted mb-3">{description}</p>
-      <button
-        onClick={onRun}
-        disabled={disabled || result.status === "loading"}
-        className="px-4 py-2 rounded-lg bg-accent text-on-accent font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        {result.status === "loading" ? "Sending to testnet…" : "Run"}
-      </button>
+      <p className="text-sm text-muted mb-4">{description}</p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onRun}
+          disabled={disabled || result.status === "loading"}
+          className="px-4 py-2 rounded-lg bg-accent text-on-accent font-medium hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {result.status === "loading" ? "Sending to testnet…" : "Run"}
+        </button>
+        {disabled && result.status === "idle" && (
+          <span className="text-xs text-muted2">Load keys first</span>
+        )}
+      </div>
 
       {result.status === "success" && (
-        <div className="mt-3 text-sm">
+        <div className="mt-4 rounded-lg border border-line px-3 py-2 text-sm">
           <p className="text-success">✅ {result.message}</p>
           {result.txHash && (
-            <a
-              href={explorerTxUrl(result.txHash)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-muted hover:underline break-all"
-            >
-              {result.txHash}
-            </a>
+            <p className="mt-1 text-xs text-muted flex flex-wrap items-center gap-2">
+              <span className="font-mono">{shorten(result.txHash)}</span>
+              <a
+                href={explorerTxUrl(result.txHash)}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:underline text-success"
+              >
+                View on explorer ↗
+              </a>
+              <CopyButton value={result.txHash} label="Copy hash" />
+            </p>
           )}
         </div>
       )}
       {result.status === "error" && (
-        <p className="mt-3 text-sm text-danger">❌ {result.message}</p>
+        <p className="mt-4 rounded-lg border border-danger px-3 py-2 text-sm text-danger break-words">
+          ❌ {result.message}
+        </p>
       )}
     </section>
   );
