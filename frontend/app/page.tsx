@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   registerVerifier,
   issueCredential,
@@ -96,12 +96,21 @@ export default function Home() {
     }
   }
 
+  const progressSteps: { label: string; status: StepStatus }[] = [
+    { label: "Keys", status: adminKey ? "success" : "idle" },
+    { label: "Register", status: step1.status },
+    { label: "Issue", status: step2.status },
+    { label: "Check", status: step3.status },
+    { label: "Revoke", status: step4.status },
+  ];
+
   return (
-    <main className="min-h-screen bg-[#0B1226] text-[#F4FFFD] px-6 py-12">
+    <main className="min-h-screen bg-bg text-text px-6 py-12">
+      <ThemeToggle />
       <div className="max-w-3xl mx-auto">
         <header className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight">AgentTrust</h1>
-          <p className="text-[#9FB3C8] mt-2">
+          <p className="text-muted mt-2">
             On-chain verifiable credentials for autonomous AI agents — live on Stellar
             testnet.
           </p>
@@ -109,27 +118,29 @@ export default function Home() {
             href={explorerContractUrl()}
             target="_blank"
             rel="noreferrer"
-            className="inline-block mt-3 text-sm text-[#5EE6C8] hover:underline"
+            className="inline-block mt-3 text-sm text-success hover:underline"
           >
             View contract on Stellar Expert →
           </a>
-          <p className="text-xs text-[#5C6B7A] mt-1 font-mono break-all">{CONTRACT_ID}</p>
+          <p className="text-xs text-muted2 mt-1 font-mono break-all">{CONTRACT_ID}</p>
         </header>
 
-        <section className="mb-8 p-4 rounded-xl border border-[#1E2A44] bg-[#0F1830]">
+        <ProgressTracker steps={progressSteps} />
+
+        <section className="mb-8 p-4 rounded-xl border border-line bg-card">
           <h2 className="font-semibold mb-2">1. Load demo identities</h2>
-          <p className="text-sm text-[#9FB3C8] mb-3">
+          <p className="text-sm text-muted mb-3">
             Loads the admin, verifier, and agent public keys from your local environment
             config.
           </p>
           <button
             onClick={loadKeys}
-            className="px-4 py-2 rounded-lg bg-[#2BB7A6] text-[#0B1226] font-medium hover:opacity-90"
+            className="px-4 py-2 rounded-lg bg-accent-strong text-on-accent font-medium hover:opacity-90"
           >
             Load Keys
           </button>
           {adminKey && (
-            <div className="mt-3 text-xs font-mono text-[#9FB3C8] space-y-1">
+            <div className="mt-3 text-xs font-mono text-muted space-y-1 break-all">
               <p>Admin: {adminKey}</p>
               <p>Verifier: {verifierKey}</p>
               <p>Agent: {agentKey}</p>
@@ -173,11 +184,101 @@ export default function Home() {
           disabled={!agentKey}
         />
 
-        <footer className="mt-12 text-xs text-[#5C6B7A] text-center">
+        <footer className="mt-12 text-xs text-muted2 text-center">
           Built for UK AI Agent Hackathon EP5 × Conduct — testnet demo only.
         </footer>
       </div>
     </main>
+  );
+}
+
+function ProgressTracker({
+  steps,
+}: {
+  steps: { label: string; status: StepStatus }[];
+}) {
+  const currentIndex = steps.findIndex((s) => s.status !== "success");
+  const doneCount = steps.filter((s) => s.status === "success").length;
+
+  return (
+    <nav aria-label="Demo progress" className="mb-8">
+      <ol className="flex items-start">
+        {steps.map((s, i) => {
+          const isDone = s.status === "success";
+          const isError = s.status === "error";
+          const isLoading = s.status === "loading";
+          const isCurrent = i === currentIndex && !isError;
+
+          let circle = "border-line bg-card text-muted2";
+          if (isDone) circle = "border-accent bg-accent text-on-accent";
+          else if (isError) circle = "border-danger bg-danger text-on-accent";
+          else if (isCurrent) circle = "border-accent bg-card text-success";
+
+          return (
+            <li
+              key={s.label}
+              className="relative flex-1 flex flex-col items-center"
+              aria-current={isCurrent ? "step" : undefined}
+            >
+              {i > 0 && (
+                <span
+                  className={`absolute top-4 right-1/2 w-full h-0.5 ${
+                    steps[i - 1].status === "success" ? "bg-accent" : "bg-line"
+                  }`}
+                />
+              )}
+              <span
+                className={`relative z-10 h-8 w-8 rounded-full border-2 flex items-center justify-center text-sm font-semibold ${circle} ${
+                  isLoading ? "animate-pulse" : ""
+                } ${isCurrent ? "ring-4 ring-accent/20" : ""}`}
+              >
+                {isDone ? "✓" : isError ? "!" : i + 1}
+              </span>
+              <span
+                className={`mt-2 text-xs text-center ${
+                  isDone || isCurrent ? "text-text" : "text-muted2"
+                }`}
+              >
+                {s.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-3 text-xs text-muted text-center">
+        {doneCount} of {steps.length} steps complete
+      </p>
+    </nav>
+  );
+}
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  // Pick up whatever theme the script in layout.tsx already applied
+  useEffect(() => {
+    const current = document.documentElement.getAttribute("data-theme");
+    setTheme(current === "light" ? "light" : "dark");
+  }, []);
+
+  function toggle() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem("theme", next);
+    } catch {}
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className="fixed top-4 right-4 z-50 h-10 w-10 rounded-full border border-line bg-card text-lg flex items-center justify-center hover:opacity-80 transition"
+    >
+      {theme === "dark" ? "☀️" : "🌙"}
+    </button>
   );
 }
 
@@ -197,28 +298,28 @@ function StepCard({
   disabled?: boolean;
 }) {
   return (
-    <section className="mb-6 p-4 rounded-xl border border-[#1E2A44] bg-[#0F1830]">
+    <section className="mb-6 p-4 rounded-xl border border-line bg-card">
       <h2 className="font-semibold mb-1">
         {number}. {title}
       </h2>
-      <p className="text-sm text-[#9FB3C8] mb-3">{description}</p>
+      <p className="text-sm text-muted mb-3">{description}</p>
       <button
         onClick={onRun}
         disabled={disabled || result.status === "loading"}
-        className="px-4 py-2 rounded-lg bg-[#5EE6C8] text-[#0B1226] font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="px-4 py-2 rounded-lg bg-accent text-on-accent font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {result.status === "loading" ? "Sending to testnet…" : "Run"}
       </button>
 
       {result.status === "success" && (
         <div className="mt-3 text-sm">
-          <p className="text-[#5EE6C8]">✅ {result.message}</p>
+          <p className="text-success">✅ {result.message}</p>
           {result.txHash && (
             <a
               href={explorerTxUrl(result.txHash)}
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-[#9FB3C8] hover:underline break-all"
+              className="text-xs text-muted hover:underline break-all"
             >
               {result.txHash}
             </a>
@@ -226,7 +327,7 @@ function StepCard({
         </div>
       )}
       {result.status === "error" && (
-        <p className="mt-3 text-sm text-[#FF8A8A]">❌ {result.message}</p>
+        <p className="mt-3 text-sm text-danger">❌ {result.message}</p>
       )}
     </section>
   );
